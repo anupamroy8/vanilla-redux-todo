@@ -19,7 +19,9 @@ main {
 ul {
   background-color: rgb(232, 235, 236);
 }
-
+span{
+  color: red;
+}
 ul.list {
   list-style: none;
 }
