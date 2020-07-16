@@ -1,119 +1,165 @@
-var inputbox = document.querySelector(".inputbox");
-var ul = document.querySelector("ul");
+let inputbox = document.querySelector(".inputbox"); //add
+let ul = document.querySelector("ul");
 
-var left = document.querySelector(".left");
-var all = document.querySelector(".all");
-var completed = document.querySelector(".completed");
-var active = document.querySelector(".active");
-var clear = document.querySelector(".clear");
+let left = document.querySelector(".left");
+let all = document.querySelector(".all");
+let completed = document.querySelector(".completed");
+let active = document.querySelector(".active");
+let clear = document.querySelector(".clear");
 
-var id = 12345;
-var sst = [
-  {
-    text: "HTML",
-    checked: true,
-    id: 12356,
-  },
-  {
-    text: "CSS",
-    checked: true,
-    id: 12359,
-  },
-  {
-    text: "DOM",
-    checked: false,
-    id: 12366,
-  },
-];
+let store = Redux.createStore(reducer);
 
-function deleteTodo(e) {
-  let id = e.target.parentElement.dataset.uid;
-  sst = sst.filter((todo) => todo.id != id);
-  createUI(sst);
-}
+// Reducer
 
-function toggleTodo(e) {
-  let id = e.target.parentElement.dataset.uid;
-  sst = sst.map((todo) => {
-    if (todo.id == id) {
-      todo.checked = !todo.checked;
+function reducer(state = { list: [], tab: "all" }, action) {
+  switch (action.type) {
+    case "Add_Todo": {
+      const newTodo = {
+        id: Date.now(),
+        text: action.text,
+        isDone: false,
+      };
+      return { ...state, list: state.list.concat(newTodo) };
     }
-    return todo;
-  });
-  createUI(sst);
-}
-
-function addTodo(e) {
-  if (e.keyCode == 13) {
-    console.log(e.target.value);
-    var obj = {
-      text: inputbox.value,
-      checked: false,
-      id: id++,
-    };
-    sst.push(obj);
-    createUI(sst);
-    inputbox.value = "";
+    case "Delete_Todo": {
+      return {
+        ...state,
+        list: state.list.filter((todo) => !(todo.id == action.id)),
+      };
+    }
+    case "Toggle_Todo": {
+      return {
+        ...state,
+        list: state.list.map((todo) => {
+          if (todo.id === action.id) {
+            todo.isDone = !todo.isDone;
+          }
+          return todo;
+        }),
+      };
+    }
+    case "All_Todo": {
+      return { ...state, tab: "all" };
+    }
+    case "Active_Todo": {
+      return { ...state, tab: "active" };
+    }
+    case "Completed_Todo": {
+      return { ...state, tab: "complete" };
+    }
+    case "Clear_Completed": {
+      return { ...state, list: state.list.filter((todo) => !todo.isDone) };
+    }
+    case "EDIT_TODO":
+      console.log(action);
+      return {
+        ...state,
+        list: state.list.map((todo) => {
+          if (todo.id == action.payload.id) {
+            todo.text = action.payload.text;
+            return todo;
+          }
+          return todo;
+        }),
+      };
   }
 }
 
-function itemsLeft() {
-  let itemsLeft = sst.filter((t) => !t.checked);
-  left.innerText = `${itemsLeft.length} items left`;
-}
+const handleEdit = (event, id) => {
+  let text = event.target.innerText;
+  const input = document.createElement("input");
+  event.target.parentElement.replaceChild(input, event.target);
+  input.value = text;
+  input.addEventListener("keyup", (e) => {
+    if (e.keyCode == 13) {
+      store.dispatch({
+        type: "EDIT_TODO",
+        payload: {
+          id,
+          text: input.value,
+        },
+      });
+    }
+  });
+};
 
-function completedTodo() {
-  let completedTodo = sst.filter((todo) => todo.checked);
-  createUI(completedTodo);
-}
-
-function activeTodo() {
-  let activeTodo = sst.filter((todo) => !todo.checked);
-  createUI(activeTodo);
-}
-
-function allTodo() {
-  createUI(sst);
-}
-
-function clearTodo() {
-  sst = sst.filter((todo) => !todo.checked);
-  createUI(sst);
-}
-
-function createUI(todos = []) {
-  console.log(todos);
+// Create UI function
+function createUI() {
   ul.innerHTML = "";
+  const todos = store.getState();
+  console.log(store.getState());
+  let filterTodo = todos.list.filter((todo) => {
+    if (todos.tab == "active" && todo.isDone == false) {
+      return todo;
+    } else if (todos.tab == "complete" && todo.isDone == true) {
+      return todo;
+    } else if (todos.tab == "all") {
+      return todo;
+    }
+  });
+  leftList = filterTodo.filter((todo) => !todo.isDone);
+  left.innerHTML = `${leftList.length} items left`;
 
-  todos.forEach((todo) => {
-    var li = document.createElement("li");
-    li.setAttribute("data-uid", todo.id);
-
-    var checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.addEventListener("click", toggleTodo);
-    checkbox.checked = todo.checked;
-
-    var p = document.createElement("p");
-    p.innerText = todo.text;
-
-    var span = document.createElement("span");
+  filterTodo.forEach((todo) => {
+    let li = document.createElement("li");
+    let p = document.createElement("p");
+    let span = document.createElement("span");
     span.innerText = "X";
-    span.addEventListener("click", deleteTodo);
+    let checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = todo.isDone;
+    span.addEventListener("click", () => {
+      store.dispatch({
+        type: "Delete_Todo",
+        id: todo.id,
+      });
+    });
+    if (todo.isDone) p.style.textDecoration = "line-through";
+    checkbox.addEventListener("click", () => {
+      store.dispatch({
+        type: "Toggle_Todo",
+        id: todo.id,
+        isDone: todo.isDone,
+      });
+    });
+    p.innerHTML = todo.text;
+    p.addEventListener("dblclick", () => handleEdit(event, todo.id));
     li.append(checkbox, p, span);
     ul.append(li);
   });
-  itemsLeft();
 }
 
-createUI(sst);
+// Subscribe
+store.subscribe(createUI);
 
-inputbox.addEventListener("keyup", addTodo);
+inputbox.addEventListener("keyup", (event) => {
+  if (event.keyCode === 13 && event.target.value.trim() !== "") {
+    const text = event.target.value;
+    store.dispatch({
+      type: "Add_Todo",
+      text,
+    });
+    event.target.value = "";
+  }
+});
 
-completed.addEventListener("click", completedTodo);
-
-active.addEventListener("click", activeTodo);
-
-all.addEventListener("click", allTodo);
-
-clear.addEventListener("click", clearTodo);
+all.addEventListener("click", (event) => {
+  store.dispatch({
+    type: "All_Todo",
+  });
+});
+active.addEventListener("click", (event) => {
+  store.dispatch({
+    type: "Active_Todo",
+  });
+});
+completed.addEventListener("click", (event) => {
+  store.dispatch({
+    type: "Completed_Todo",
+  });
+});
+clear.addEventListener("click", (event) => {
+  store.dispatch({
+    type: "Clear_Completed",
+  });
+});
